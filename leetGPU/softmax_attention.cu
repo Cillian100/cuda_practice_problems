@@ -34,23 +34,7 @@ __global__ void softmax(float* C, float* output, int value){
   if(work_id>=value){
     return;
   }
-
-  __shared__ float C_shared[BLOCK_DIM];
-  C[work_id]=exp(C[work_id]);
-  unsigned int segment = 2*blockDim.x*blockIdx.x;
-  unsigned int i = segment + threadIdx.x;
-  unsigned int t = threadIdx.x;
-  C_shared[t] = C[i] + C[i+BLOCK_DIM];
-  for(int stride = blockDim.x/2; stride>=1; stride/=2){
-    __syncthreads();
-    if(t < stride){
-      C_shared[t] += C_shared[t+stride];
-    }
-  }
-  
-  if(threadIdx.x==0){
-    atomicAdd(output, C_shared[0]);
-  }
+  printf("poop - %f\n", output[0]);
 }
 
 __global__ void softmax_2(float* C, float* output, int value){
@@ -96,9 +80,7 @@ int main(){
   cudaDeviceSynchronize();
 
   float *output_2 = nullptr;
-  float output_host[] = {0};
-  cudaMalloc(&output_2, sizeof(float));
-  cudaMemcpy(output_2, output_host, sizeof(float), cudaMemcpyDefault);
+  cudaMalloc(&output_2, M*sizeof(float));
   
   softmax<<<grid_dimension, block_dimension>>>(C, output_2, M*N);
   cudaDeviceSynchronize();
