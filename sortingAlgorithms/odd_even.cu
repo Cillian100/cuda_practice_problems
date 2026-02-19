@@ -29,7 +29,7 @@ __global__ void odd_even_kernel(int* array, int N){
   if(work_id>=N){
     return;
   }
-
+  
   __syncthreads();
   __shared__ int shared_array[BLOCK_SIZE];
   __shared__ bool isSorted[1];
@@ -62,37 +62,34 @@ __global__ void odd_even_kernel(int* array, int N){
   array[work_id]=shared_array[work_id];
 }
 
-void create_array_host(int* array, int N){
-  for(int a=0;a<N;a++){
-    array[a]=rand()%(100);
-  }
-}
-
-void create_array_device(int* array, int N, int blocksPerGrid){
-  printf("%d\n", blocksPerGrid);
-  //  int (*array_device)[1024] = calloc(blocksPerGrid, sizeof*array_device);
-  //  int (*array_device)[10] = calloc(10, sizeof*array);
-  int** array_device = nullptr;
-}
 
 int main(){
-  int N=100;
-  int *array=(int*)malloc(N*sizeof(int));
+  int N=BLOCK_SIZE*5;
+  int* array_host = nullptr;
   int* array_device = nullptr;
   int threadsPerBlock=BLOCK_SIZE;
   int blocksPerGrid=(threadsPerBlock + N - 1)/threadsPerBlock;
-  create_array_host(array, N);
-  create_array_device(array, N, blocksPerGrid);
-  
 
-  //  cudaMalloc(&array_device, N*sizeof(int));
-  //  cudaMemcpy(array_device, array, N*sizeof(int), cudaMemcpyDefault);
+  cudaMallocHost(&array_host, N*sizeof(int));
+ 
+  for(int a=0;a<N;a++){
+    array_host[a]=rand()%1000;
+  }
 
-  //  odd_even_kernel<<<1, BLOCK_SIZE>>>(array_device, N);
+  for(int a=0;a<blocksPerGrid;a++){
+    cudaMalloc(&array_device, BLOCK_SIZE*sizeof(int));
+    cudaMemcpy(array_device, array_host+(BLOCK_SIZE*a), BLOCK_SIZE*sizeof(int), cudaMemcpyDefault);
+    odd_even_kernel<<<1, threadsPerBlock>>>(array_device, BLOCK_SIZE);
+    cudaDeviceSynchronize();
+    cudaMemcpy(array_host+(BLOCK_SIZE*a), array_device, BLOCK_SIZE*sizeof(int), cudaMemcpyDefault);
+  }
 
-  //  cudaDeviceSynchronize();
-  //  printf("poop\n");
-  //  cudaMemcpy(array, array_device, N*sizeof(int), cudaMemcpyDefault);
+  for(int a=0;a<blocksPerGrid;a++){
+    for(int b=0;b<BLOCK_SIZE;b++){
+      printf("%d ", array_host[b+BLOCK_SIZE*a]);
+    }
+    printf("\n");
+  }
 
-  //  print_array_host(array, N);
+  cudaDeviceSynchronize();
 }
